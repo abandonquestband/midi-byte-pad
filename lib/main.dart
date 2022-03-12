@@ -390,7 +390,7 @@ class _MyAppState extends State<MyApp> {
                     backgroundColor: Color.fromRGBO(152, 56, 148, 1),
                     child: _currentPage == "pdf"
                         ? Icon(Icons.music_note, size: 42)
-                        : Icon(Icons.picture_as_pdf, size: 42),
+                        : Icon(Icons.padding, size: 42),
                     onPressed: () {
                       switch (_currentPage) {
                         case "pdf":
@@ -411,8 +411,7 @@ class _MyAppState extends State<MyApp> {
                 ? null
                 : new AppBar(
                     backgroundColor: Color.fromRGBO(152, 56, 148, 1),
-                    title:
-                        Text('Connect to AQ PDF Switcher and your Page Turner'),
+                    title: Text('Connect to MIDI Devices'),
                     actions: <Widget>[
                       Builder(builder: (context) {
                         return IconButton(
