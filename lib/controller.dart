@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'package:drag_and_drop_gridview/devdrag.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
+import 'dart:typed_data';
 import 'package:flutter_midi_command/flutter_midi_command_messages.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'dart:math';
 import 'dart:io' show Platform, File;
 
 int mutableCurrentPage = 0;
@@ -47,8 +50,10 @@ class MidiControlsState extends State<MidiControls> {
   var _channel = 0;
   var _controller = 0;
   var _value = 0;
+  bool _editMode = false;
   int? pages = 0;
   int _totalNumberOfPages = 1;
+  int _totalNumberOfPads = 10;
   int? currentPage = 0;
   bool isReady = false;
   String errorMessage = '';
@@ -60,8 +65,8 @@ class MidiControlsState extends State<MidiControls> {
   @override
   void initState() {
     _pdfViewerController = PdfViewerController();
-    _rxSubscription =
-        _midiCommand.onMidiDataReceived?.listen(handleMidiPackets);
+    //_rxSubscription =
+    //    _midiCommand.onMidiDataReceived?.listen(handleMidiPackets);
 
     super.initState();
   }
@@ -129,218 +134,176 @@ class MidiControlsState extends State<MidiControls> {
     });
   }
 
+  void sendMidi(listOfData) {
+    Uint8List data = Uint8List(listOfData.length);
+    for (var i = 0; i < listOfData.length; i++) {
+      data[i] = listOfData[i];
+    }
+    MidiCommand().sendData(data);
+  }
+
   void dispose() {
     // _setupSubscription?.cancel();
     _rxSubscription?.cancel();
     super.dispose();
   }
 
+  Future<void> _editPad(BuildContext context, index) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // user must tap button!
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Edit the Pad!'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: const <Widget>[
+                Text('This is a demo alert dialog.'),
+                Text('Would you like to approve of this message?'),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Approve'),
+              onPressed: () {
+                setState(() {
+                  _totalNumberOfPads = index;
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (widget.remotePDFpath == "" ||
-        !File(widget.remotePDFpath).existsSync()) {
-      return Scaffold(
-        body: Center(
-            child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Image.asset("assets/images/aq_logo-transparent.png"),
-            Text(
-              "Click the music note to get started!",
-              style: TextStyle(fontSize: 25),
-              textAlign: TextAlign.center,
-            )
-          ],
-        )),
-      );
-    }
-    if (Platform.isMacOS) {
-      return Scaffold(
-          body: Stack(
-        children: <Widget>[
-          SfPdfViewer.file(
-            File(widget.remotePDFpath),
-            enableDoubleTapZooming: false,
-            controller: _pdfViewerController,
-            onDocumentLoaded: (details) {
-              setState(() {
-                _totalNumberOfPages = details.document.pages.count;
-              });
-              _pdfViewerController.jumpToPage(mutableCurrentPage);
-            },
-            scrollDirection: PdfScrollDirection.horizontal,
-            pageLayoutMode: PdfPageLayoutMode.single,
-            canShowPaginationDialog: false,
-            interactionMode: PdfInteractionMode.pan,
-            canShowScrollHead: false,
-            canShowScrollStatus: false,
-          ),
-          Positioned(
-              child: _totalNumberOfPages == 1
-                  ? SizedBox.shrink()
-                  : Slider(
-                      value: currentPage! + .0,
-                      min: 0,
-                      max: _totalNumberOfPages - 1.0,
-                      divisions: _totalNumberOfPages - 1,
-                      thumbColor: Color.fromRGBO(152, 56, 148, 1),
-                      activeColor: Color.fromRGBO(152, 56, 148, 1),
-                      inactiveColor: Color.fromRGBO(152, 56, 148, .5),
-                      label: (currentPage! + 1).toString(),
-                      onChanged: (double value) {
-                        setState(() {
-                          currentPage = value.round();
-                        });
-                        if (Platform.isMacOS) {
-                          _pdfViewerController.jumpToPage(value.round() + 1);
-                        }
-                        if (Platform.isIOS) {
-                          _pdfViewController.setPage(value.round());
-                        }
-                      },
-                    ),
-              bottom: 5),
-          Positioned(
-              child: Text("${currentPage! + 1}/${_totalNumberOfPages}",
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 30,
-                      color: Color.fromRGBO(152, 56, 148, .5))),
-              left: 15,
-              top: 15),
-          Positioned(
-              child: Text("${currentPage! + 1}/${_totalNumberOfPages}",
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 30,
-                      color: Color.fromRGBO(152, 56, 148, .5))),
-              bottom: 15,
-              right: 15)
-        ],
-        alignment: Alignment.center,
-      ));
-    }
-    return Scaffold(
-      body: Stack(
-        children: [
-          Builder(builder: (context) {
-            return Platform.isIOS || Platform.isAndroid
-                ? SizedBox(
-                    /*
-                  850x1200, 800x1000, 
-                  */
-                    width: 850,
-                    height: 1200,
-                    child: PDFView(
-                      key: ValueKey<String>(widget.remotePDFpath),
-                      filePath: widget.remotePDFpath,
-                      enableSwipe: true,
-                      swipeHorizontal: true,
-                      autoSpacing: true,
-                      pageFling: true,
-                      pageSnap: true,
-                      defaultPage: currentPage!,
-                      fitPolicy: FitPolicy.BOTH,
-                      preventLinkNavigation:
-                          false, // if set to true the link is handled in flutter
-                      onRender: (_pages) {
-                        setState(() {
-                          pages = _pages;
-                          isReady = true;
-                        });
-                      },
-                      onError: (error) {
-                        setState(() {
-                          errorMessage = error.toString();
-                        });
-                        print(error.toString());
-                      },
-                      onPageError: (page, error) {
-                        setState(() {
-                          errorMessage = '$page: ${error.toString()}';
-                        });
-                        print('$page: ${error.toString()}');
-                      },
-                      onViewCreated: (PDFViewController vc) {
-                        vc.getPageCount().then((pageCount) {
-                          setState(() {
-                            _pdfViewController = vc;
-                            _totalNumberOfPages = pageCount!;
-                          });
-                        });
-                      },
-                      onLinkHandler: (String? uri) {
-                        print('goto uri: $uri');
-                      },
-                      onPageChanged: (int? page, int? total) {
-                        print('page change: $page/$total');
-                        setState(() {
-                          currentPage = page;
-                        });
-                      },
-                    ),
-                  )
-                : SizedBox(
-                    width: 50,
-                    height:
-                        30, /*
-                    child: PdfController(
-                            document:
-                                PdfDocument.openFile(widget.remotePDFpath)),
-                  */
-                  );
-          }),
-          Positioned(
-              child: _totalNumberOfPages == 1
-                  ? SizedBox.shrink()
-                  : Slider(
-                      value: currentPage! + .0,
-                      min: 0,
-                      max: _totalNumberOfPages - 1.0,
-                      divisions: _totalNumberOfPages - 1,
-                      thumbColor: Color.fromRGBO(152, 56, 148, 1),
-                      activeColor: Color.fromRGBO(152, 56, 148, 1),
-                      inactiveColor: Color.fromRGBO(152, 56, 148, .5),
-                      label: (currentPage! + 1).toString(),
-                      onChanged: (double value) {
-                        setState(() {
-                          currentPage = value.round();
-                        });
-                        if (Platform.isMacOS) {
-                          _pdfViewerController.jumpToPage(value.round() + 1);
-                        }
-                        if (Platform.isIOS) {
-                          _pdfViewController.setPage(value.round());
-                        }
-                      },
-                    ),
-              bottom: 5),
-          Positioned(
-              child: Text("${currentPage! + 1}/${_totalNumberOfPages}",
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 30,
-                      color: Color.fromRGBO(152, 56, 148, .5))),
-              right: 15,
-              bottom: 15),
-          Positioned(
-              child: Text("${currentPage! + 1}/${_totalNumberOfPages}",
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 30,
-                      color: Color.fromRGBO(152, 56, 148, .5))),
-              left: 15,
-              top: 15)
-        ],
-        alignment: Alignment.center,
-      )
-      //SteppedSelector('Channel', _channel + 1, 1, 16, _onChannelChanged),
-      //SteppedSelector(
-      //    'Controller', _controller, 0, 127, _onControllerChanged),
-      //SlidingSelector('Value', _value, 0, 127, _onValueChanged),
-      ,
+//    int crossAxisCount 6;
+    AppBar appBar = AppBar(
+      title: !_editMode
+          ? Text("Ballad of the Goddess")
+          : TextFormField(
+              initialValue: "Ballad of the Goddess",
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(),
+                hintText: 'Group Name',
+              )),
+      backgroundColor: Theme.of(context).primaryColor,
+      actions: [
+        if (!_editMode)
+          IconButton(
+              onPressed: () {
+                setState(() {
+                  _editMode = !_editMode;
+                });
+              },
+              icon: Icon(Icons.edit)),
+        if (_editMode) ...[
+          IconButton(
+              onPressed: () {
+                setState(() {
+                  _totalNumberOfPads = _totalNumberOfPads + 1;
+                });
+              },
+              icon: Icon(Icons.add)),
+          IconButton(
+              onPressed: () {
+                setState(() {
+                  _totalNumberOfPads =
+                      _totalNumberOfPads - 1 < 0 ? 0 : _totalNumberOfPads - 1;
+                });
+              },
+              icon: Icon(Icons.remove)),
+          IconButton(
+              onPressed: () {
+                setState(() {
+                  _editMode = false;
+                });
+              },
+              icon: Icon(Icons.check_box)),
+        ]
+      ],
     );
+    var heightOfAppBar = appBar.preferredSize.height;
+    return Scaffold(
+        appBar: appBar,
+        backgroundColor: Colors.black,
+        body: Center(child: Builder(builder: (BuildContext context) {
+          var size = MediaQuery.of(context).size;
+          final height = size.height - heightOfAppBar;
+          final width = size.width;
+          double squareRootOfPads = sqrt(_totalNumberOfPads);
+          int nextPerfectSquare =
+              pow((sqrt(_totalNumberOfPads) + 1).floor(), 2) as int;
+          int previousPerfectSquare =
+              pow((sqrt(_totalNumberOfPads)).floor(), 2) as int;
+          int roundedSqrt = (squareRootOfPads.round());
+          print("${previousPerfectSquare}.....${nextPerfectSquare}");
+          int differenceFromSquareRoots =
+              nextPerfectSquare - previousPerfectSquare;
+          bool positionIsLessThanHalfOfDistanceToNextSquareRoot =
+              roundedSqrt < differenceFromSquareRoots / 2;
+          //if the difference is less than half the total distance
+          final double itemHeight = height;
+          final double itemWidth = width;
+          if (_totalNumberOfPads <= 0) {
+            return SizedBox.shrink();
+          }
+          return GridView.builder(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: squareRootOfPads.ceil(),
+                childAspectRatio: height < width
+                    ? max(itemHeight / itemWidth, itemWidth / itemHeight)
+                    : min(itemHeight / itemWidth, itemWidth / itemHeight),
+                //childAspectRatio: 3 / 4.5,
+              ),
+              //padding: EdgeInsets.all(20),
+              itemCount: _totalNumberOfPads,
+              itemBuilder: (context, index) => GestureDetector(
+                    //onSecondaryTap: ,
+                    onTapDown: (sf) {
+                      sendMidi([0xC0, index]);
+                      //sendMidi([0x90, 0x40 + index, 0x64]);
+                    },
+                    onTapCancel: () {
+                      //sendMidi([0x80, 0x40 + index, 0x0]);
+                    },
+                    onTapUp: (sd) {
+                      sendMidi([0xC0, 0]);
+                      // sendMidi([0x80, 0x40 + index, 0x0]);
+                    },
+                    child: Card(
+                      elevation: 2,
+                      child: Stack(
+                        children: <Widget>[
+                          Positioned(
+                              child: _editMode
+                                  ? Text("editing")
+                                  : Text("${index}"),
+                              top: 10,
+                              left: 10),
+                          if (_editMode)
+                            Positioned(
+                                top: 0,
+                                right: 0,
+                                child: IconButton(
+                                  //iconSize: 10,
+                                  padding: EdgeInsets.all(0),
+                                  icon: Icon(Icons.edit),
+                                  onPressed: () async {
+                                    await _editPad(context, index);
+                                  },
+                                ))
+                        ],
+                      ),
+                    ),
+                  ));
+        })));
   }
 
   _onChannelChanged(int newValue) {

@@ -373,7 +373,12 @@ class _MyAppState extends State<MyApp> {
     );
 
     return new MaterialApp(
-        color: Colors.blue,
+        debugShowCheckedModeBanner: false,
+        color: Colors.purple,
+        theme: ThemeData(
+          //primaryColor: Color.fromRGBO(156, 39, 176, 1),
+          fontFamily: 'Courier New',
+        ),
         home: SafeArea(
           top: true,
           child: new Scaffold(

@@ -18,6 +18,10 @@ dependencies:
   string_extensions: ^0.4.1
   floating_bottom_navigation_bar: ^1.5.2
   flutter_midi_command: ^0.4.5
+  drag_and_drop_gridview:
+    git: 
+      url: https://github.com/DevOrbiter/drag_and_drop_gridview.git
+      ref: master
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
