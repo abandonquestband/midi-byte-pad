@@ -10,6 +10,7 @@ import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'dart:math';
 import 'package:provider/provider.dart';
 import './states/provider.dart';
+import 'package:file_picker/file_picker.dart';
 import 'dart:io' show Platform, File;
 
 int mutableCurrentPage = 0;
@@ -257,7 +258,17 @@ class MidiControlsState extends State<MidiControls> {
                   IconButton(
                     tooltip: "Add from file",
                     icon: Icon(Icons.file_open),
-                    onPressed: () {},
+                    onPressed: () async {
+                      FilePickerResult? result =
+                          await FilePicker.platform.pickFiles();
+
+                      if (result != null) {
+                        print(result);
+                        //File file = File(result.files.single.path);
+                      } else {
+                        // User canceled the picker
+                      }
+                    },
                   ),
                   IconButton(
                     tooltip: "Add blank group",
