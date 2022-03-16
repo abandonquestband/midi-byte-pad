@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
+import 'package:get_storage/get_storage.dart';
 import 'controller.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
@@ -12,8 +13,21 @@ import 'package:string_extensions/string_extensions.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'dart:io' as io;
+import 'package:provider/provider.dart';
+import 'states/provider.dart';
 
-void main() => runApp(new MyApp());
+void main() async {
+  await GetStorage.init();
+  runApp(
+    ChangeNotifierProvider(
+        create: (context) => AppProvider(),
+        child: ChangeNotifierProvider<AppProvider>(
+            create: (context) => AppProvider(),
+            child: Consumer<AppProvider>(
+              builder: (context, appProvider, child) => MyApp(),
+            ))),
+  );
+}
 
 class MyApp extends StatefulWidget {
   @override
@@ -27,8 +41,6 @@ class _MyAppState extends State<MyApp> {
 
   String _chooseYourCharacter = "andy";
 
-  String _currentPage =
-      io.Platform.isAndroid || io.Platform.isIOS ? "pdf" : "midi";
   int _numberOfFilesDownloaded = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
 
@@ -304,75 +316,8 @@ class _MyAppState extends State<MyApp> {
                 ))
       ],
     );
-    var drawerItems = ListView(
-      key: ValueKey<int>(_numberOfFilesDownloaded),
-      padding: EdgeInsets.zero,
-      children: <Widget>[
-        drawerHeader,
-        OutlinedButton.icon(
-          onPressed: () {
-            // Respond to button press
-            setState(() {
-              _scaffoldKey.currentState!.openDrawer();
-              //Navigator.of(context).pop();
-              _currentPage = "midi";
-            });
-          },
-          icon: Icon(Icons.wifi, size: 18),
-          label: Text("MIDI Network Settings"),
-        ),
-        OutlinedButton.icon(
-          onPressed: () async {
-            // Respond to button press
-            downloadAllSongs();
-          },
-          icon: Icon(Icons.download, size: 18),
-          label: Text("Download ${_chooseYourCharacter.capitalize}'s PDFs"),
-        ),
-        OutlinedButton.icon(
-          onPressed: () async {
-            updateNumberOfFiles();
-          },
-          icon: Icon(Icons.refresh, size: 18),
-          label: Text("Refresh ${_chooseYourCharacter.capitalize}'s PDF Count"),
-        ),
-        OutlinedButton.icon(
-          onPressed: () async {
-            setState(() {
-              remotePDFpath = "";
-            });
-            // Respond to button press
-            final directory = await getApplicationDocumentsDirectory();
-            var whereAllFilesAreStored = directory.path;
-            final dir = io.Directory(whereAllFilesAreStored);
-            var all = dir.listSync();
-            all.forEach((file) {
-              io.File(file.path).deleteSync();
-            });
-            _prefs.then((SharedPreferences prefs) {
-              List<String> emptyArrayFilled = List.filled(35, "");
-              accountsImagePaths.keys.forEach((element) {
-                prefs.remove(element);
-              });
-              updateNumberOfFiles();
-            });
-          },
-          icon: Icon(Icons.delete_forever, size: 18),
-          label: Text("Delete All Downloaded PDFs"),
-        ),
-        ...List<Widget>.generate(
-          (accountsPdfUrls[_chooseYourCharacter] ?? [] as List).length,
-          (i) => ListTile(
-              title: Text(
-                  "${(accountsPdfUrls[_chooseYourCharacter]![i].substring(accountsPdfUrls[_chooseYourCharacter]![i].lastIndexOf("/") + 1).replaceAll("%20", " ").replaceAll(".pdf", "").replaceAll(" - ", ": ").replaceAll("-", " ").replaceAll("_", ": ") as String).toUpperCase()}"),
-              onTap: () {
-                changeSong(i);
-              }),
-        ),
-      ],
-    );
 
-    return new MaterialApp(
+    return MaterialApp(
         debugShowCheckedModeBanner: false,
         color: Colors.purple,
         theme: ThemeData(
@@ -380,104 +325,89 @@ class _MyAppState extends State<MyApp> {
           fontFamily: 'Courier New',
         ),
         home: SafeArea(
-          top: true,
-          child: new Scaffold(
-            key: _scaffoldKey,
-            floatingActionButtonLocation: _currentPage == "pdf"
-                ? FloatingActionButtonLocation.startFloat
-                : FloatingActionButtonLocation.endFloat,
-            floatingActionButton: false
-                ? null
-                : FloatingActionButton(
-                    focusColor: Color.fromRGBO(152, 56, 148, 0),
-                    hoverColor: Color.fromRGBO(152, 56, 148, 0),
-                    splashColor: Color.fromRGBO(152, 56, 148, 0),
-                    backgroundColor: Color.fromRGBO(152, 56, 148, 1),
-                    child: _currentPage == "pdf"
-                        ? Icon(Icons.music_note, size: 42)
-                        : Icon(Icons.padding, size: 42),
-                    onPressed: () {
-                      switch (_currentPage) {
-                        case "pdf":
-                          _scaffoldKey.currentState!.openEndDrawer();
-                          break;
-                        case "midi":
-                          setState(() {
-                            _currentPage = "pdf";
-                          });
-                          break;
-                      }
-                      ;
-                    }),
-            endDrawer: Drawer(
-              child: drawerItems,
-            ),
-            appBar: _currentPage == "pdf"
-                ? null
-                : new AppBar(
-                    backgroundColor: Color.fromRGBO(152, 56, 148, 1),
-                    title: Text('Connect to MIDI Devices'),
-                    actions: <Widget>[
-                      Builder(builder: (context) {
-                        return IconButton(
-                            onPressed: () async {
-                              // Ask for bluetooth permissions
-                              await _informUserAboutBluetoothPermissions(
-                                  context);
+            top: true,
+            child: Consumer<AppProvider>(
+              builder: (context, appProvider, child) => new Scaffold(
+                key: _scaffoldKey,
+                floatingActionButtonLocation:
+                    FloatingActionButtonLocation.endFloat,
+                floatingActionButton: appProvider.screen == "midi"
+                    ? FloatingActionButton(
+                        focusColor: Color.fromRGBO(152, 56, 148, 0),
+                        hoverColor: Color.fromRGBO(152, 56, 148, 0),
+                        splashColor: Color.fromRGBO(152, 56, 148, 0),
+                        backgroundColor: Color.fromRGBO(152, 56, 148, 1),
+                        child: Icon(Icons.next_plan, size: 42),
+                        onPressed: () {
+                          appProvider.changeScreen("pads");
+                        })
+                    : null,
+                appBar: appProvider.screen == "pads"
+                    ? null
+                    : new AppBar(
+                        backgroundColor: Color.fromRGBO(152, 56, 148, 1),
+                        title: Text('Connect to MIDI Devices'),
+                        actions: <Widget>[
+                          Builder(builder: (context) {
+                            return IconButton(
+                                onPressed: () async {
+                                  // Ask for bluetooth permissions
+                                  await _informUserAboutBluetoothPermissions(
+                                      context);
 
-                              // Start bluetooth
-                              await _midiCommand.startBluetoothCentral();
+                                  // Start bluetooth
+                                  await _midiCommand.startBluetoothCentral();
 
-                              await _midiCommand
-                                  .waitUntilBluetoothIsInitialized();
+                                  await _midiCommand
+                                      .waitUntilBluetoothIsInitialized();
 
-                              // If bluetooth is powered on, start scanning
-                              if (_midiCommand.bluetoothState ==
-                                  BluetoothState.poweredOn) {
-                                _midiCommand
-                                    .startScanningForBluetoothDevices()
-                                    .catchError((err) {
-                                  print("Error $err");
-                                });
+                                  // If bluetooth is powered on, start scanning
+                                  if (_midiCommand.bluetoothState ==
+                                      BluetoothState.poweredOn) {
+                                    _midiCommand
+                                        .startScanningForBluetoothDevices()
+                                        .catchError((err) {
+                                      print("Error $err");
+                                    });
 
-                                ScaffoldMessenger.of(context)
-                                    .showSnackBar(SnackBar(
-                                  content: Text(
-                                      'Scanning for bluetooth devices ...'),
-                                ));
-                              } else {
-                                final messages = {
-                                  BluetoothState.unsupported:
-                                      'Bluetooth is not supported on this device.',
-                                  BluetoothState.poweredOff:
-                                      'Please switch on bluetooth and try again.',
-                                  BluetoothState.poweredOn:
-                                      'Everything is fine.',
-                                  BluetoothState.resetting:
-                                      'Currently resetting. Try again later.',
-                                  BluetoothState.unauthorized:
-                                      'This app needs bluetooth permissions. Please open settings, find your app and assign bluetooth access rights and start your app again.',
-                                  BluetoothState.unknown:
-                                      'Bluetooth is not ready yet. Try again later.',
-                                  BluetoothState.other:
-                                      'This should never happen. Please inform the developer of your app.',
-                                };
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(SnackBar(
+                                      content: Text(
+                                          'Scanning for bluetooth devices ...'),
+                                    ));
+                                  } else {
+                                    final messages = {
+                                      BluetoothState.unsupported:
+                                          'Bluetooth is not supported on this device.',
+                                      BluetoothState.poweredOff:
+                                          'Please switch on bluetooth and try again.',
+                                      BluetoothState.poweredOn:
+                                          'Everything is fine.',
+                                      BluetoothState.resetting:
+                                          'Currently resetting. Try again later.',
+                                      BluetoothState.unauthorized:
+                                          'This app needs bluetooth permissions. Please open settings, find your app and assign bluetooth access rights and start your app again.',
+                                      BluetoothState.unknown:
+                                          'Bluetooth is not ready yet. Try again later.',
+                                      BluetoothState.other:
+                                          'This should never happen. Please inform the developer of your app.',
+                                    };
 
-                                ScaffoldMessenger.of(context)
-                                    .showSnackBar(SnackBar(
-                                  backgroundColor: Colors.red,
-                                  content: Text(messages[
-                                          _midiCommand.bluetoothState] ??
-                                      'Unknown bluetooth state: ${_midiCommand.bluetoothState}'),
-                                ));
-                              }
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(SnackBar(
+                                      backgroundColor: Colors.red,
+                                      content: Text(messages[
+                                              _midiCommand.bluetoothState] ??
+                                          'Unknown bluetooth state: ${_midiCommand.bluetoothState}'),
+                                    ));
+                                  }
 
-                              // If not show a message telling users what to do
-                              setState(() {});
-                            },
-                            icon: Icon(Icons.refresh));
-                      }),
-                      /*
+                                  // If not show a message telling users what to do
+                                  setState(() {});
+                                },
+                                icon: Icon(Icons.refresh));
+                          }),
+                          /*
                       Builder(builder: (context) {
                         return IconButton(
                             onPressed: () async {
@@ -505,9 +435,9 @@ class _MyAppState extends State<MyApp> {
                             icon: Icon(Icons.storage));
                       }),
                       */
-                    ],
-                  ),
-            /*
+                        ],
+                      ),
+                /*
         bottomNavigationBar: Container(
           padding: EdgeInsets.all(24.0),
           child: Text(
@@ -516,72 +446,74 @@ class _MyAppState extends State<MyApp> {
           ),
         ),
         */
-            body: Center(
-              child: FutureBuilder(
-                future: _midiCommand.devices,
-                builder: (BuildContext context, AsyncSnapshot snapshot) {
-                  if (snapshot.hasData && snapshot.data != null) {
-                    var devices = (snapshot.data as List<MidiDevice>);
-                    devices.sort((a, b) {
-                      return a.name
-                          .toLowerCase()
-                          .compareTo(b.name.toLowerCase());
-                    });
-                    //devices.removeWhere(
-                    //  (element) => !element.name.contains("Jamstik"));
-                    // var devices =
-                    //     allDevices.where((d) => d.name.contains('Jamstik'))
-                    //         as List<MidiDevice>;
-                    /*
+                body: Center(
+                  child: FutureBuilder(
+                    future: _midiCommand.devices,
+                    builder: (BuildContext context, AsyncSnapshot snapshot) {
+                      if (snapshot.hasData && snapshot.data != null) {
+                        var devices = (snapshot.data as List<MidiDevice>);
+                        devices.sort((a, b) {
+                          return a.name
+                              .toLowerCase()
+                              .compareTo(b.name.toLowerCase());
+                        });
+                        //devices.removeWhere(
+                        //  (element) => !element.name.contains("Jamstik"));
+                        // var devices =
+                        //     allDevices.where((d) => d.name.contains('Jamstik'))
+                        //         as List<MidiDevice>;
+                        /*
                 var devices = (snapshot.data as List<MidiDevice>);
                 MidiDevice device = devices[index];
                 _midiCommand.connectToDevice(device);
                 */
-                    switch (_currentPage) {
-                      case "pdf":
-                        return ControllerPage(remotePDFpath, changeSong);
-                      case "midi":
-                      default:
-                        return ListView.builder(
-                          itemCount: devices.length,
-                          itemBuilder: (context, index) {
-                            MidiDevice device = devices[index];
-                            return ListTile(
-                              title: Text(
-                                device.name,
-                                style: Theme.of(context).textTheme.headline5,
-                              ),
-                              subtitle: Text(
-                                  "ins:${device.inputPorts.length} outs:${device.outputPorts.length}"),
-                              leading: Icon(device.connected
-                                  ? Icons.radio_button_on
-                                  : Icons.radio_button_off),
-                              trailing: Icon(_deviceIconForType(device.type)),
-                              onLongPress: () {},
-                              onTap: () {
-                                if (device.connected) {
-                                  _midiCommand.disconnectDevice(device);
-                                } else {
-                                  print("connect");
-                                  _midiCommand
-                                      .connectToDevice(device)
-                                      .then((_) {
-                                    print("device connected async");
-                                  });
-                                }
+                        switch (appProvider.screen) {
+                          case "pads":
+                            return ControllerPage();
+                          case "midi":
+                          default:
+                            return ListView.builder(
+                              itemCount: devices.length,
+                              itemBuilder: (context, index) {
+                                MidiDevice device = devices[index];
+                                return ListTile(
+                                  title: Text(
+                                    device.name,
+                                    style:
+                                        Theme.of(context).textTheme.headline5,
+                                  ),
+                                  subtitle: Text(
+                                      "ins:${device.inputPorts.length} outs:${device.outputPorts.length}"),
+                                  leading: Icon(device.connected
+                                      ? Icons.radio_button_on
+                                      : Icons.radio_button_off),
+                                  trailing:
+                                      Icon(_deviceIconForType(device.type)),
+                                  onLongPress: () {},
+                                  onTap: () {
+                                    if (device.connected) {
+                                      _midiCommand.disconnectDevice(device);
+                                    } else {
+                                      print("connect");
+                                      _midiCommand
+                                          .connectToDevice(device)
+                                          .then((_) {
+                                        print("device connected async");
+                                      });
+                                    }
+                                  },
+                                );
                               },
                             );
-                          },
-                        );
-                    }
-                  } else {
-                    return new CircularProgressIndicator();
-                  }
-                },
+                        }
+                      } else {
+                        return new CircularProgressIndicator();
+                      }
+                    },
+                  ),
+                ),
               ),
-            ),
-          ),
-        ));
+            )));
   }
 }
 

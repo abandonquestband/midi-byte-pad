@@ -8,15 +8,14 @@ import 'dart:typed_data';
 import 'package:flutter_midi_command/flutter_midi_command_messages.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'dart:math';
+import 'package:provider/provider.dart';
+import './states/provider.dart';
 import 'dart:io' show Platform, File;
 
 int mutableCurrentPage = 0;
 
 class ControllerPage extends StatelessWidget {
-  String remotePDFpath;
-  Function changeSong;
-
-  ControllerPage(this.remotePDFpath, this.changeSong);
+  ControllerPage();
 
   @override
   Widget build(BuildContext context) {
@@ -28,110 +27,32 @@ class ControllerPage extends StatelessWidget {
             .replaceAll("%20", " ")),
       ),
       */
-      key: ValueKey<String>(remotePDFpath),
-      body: MidiControls(remotePDFpath, changeSong),
+      body: MidiControls(),
     );
   }
 }
 
 class MidiControls extends StatefulWidget {
-  String remotePDFpath;
-  Function changeSong;
-
-  MidiControls(this.remotePDFpath, this.changeSong);
+  MidiControls();
 
   @override
   MidiControlsState createState() {
-    return new MidiControlsState();
+    return MidiControlsState();
   }
 }
 
 class MidiControlsState extends State<MidiControls> {
-  var _channel = 0;
-  var _controller = 0;
-  var _value = 0;
+  final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
   bool _editMode = false;
-  int? pages = 0;
-  int _totalNumberOfPages = 1;
   int _totalNumberOfPads = 10;
-  int? currentPage = 0;
-  bool isReady = false;
+  final List<int> _items = List<int>.generate(50, (int index) => index);
   String errorMessage = '';
-  late PDFViewController _pdfViewController;
-  late PdfViewerController _pdfViewerController;
   StreamSubscription<MidiPacket>? _rxSubscription;
   MidiCommand _midiCommand = MidiCommand();
 
   @override
   void initState() {
-    _pdfViewerController = PdfViewerController();
-    //_rxSubscription =
-    //    _midiCommand.onMidiDataReceived?.listen(handleMidiPackets);
-
     super.initState();
-  }
-
-  void handleMidiData(data) async {
-    //print('handleMidiData: ${data}');
-    if (data[0] == 192 && data.length > 1) {
-      if (Platform.isMacOS) {
-        _pdfViewerController.jumpToPage(data[1] + 1);
-      } else {
-        _pdfViewController.setPage(data[1]);
-      }
-      int newState = data[1]; //Platform.isMacOS ? data[1] + 1 : data[1];
-      mutableCurrentPage = Platform.isMacOS ? data[1] + 1 : data[1];
-      ;
-      setState(() {
-        currentPage = newState;
-      });
-    }
-    if (data[0] == 176 && data[1] == 0 && data.length > 2) {
-      widget.changeSong(data[2]);
-    }
-  }
-
-  void handleMidiPackets(packet) {
-    var data = packet.data;
-    //var timestamp = packet.timestamp;
-    //var device = packet.device;
-    //print(
-    //    "data $data @ time $timestamp from device ${device.name}:${device.id}");
-    //var status = data[0];
-
-    List<int> midiPacket = <int>[...data];
-    var i = 0;
-
-    var bufferOfGroups = [];
-    var buffer = [];
-    while (i < midiPacket.length) {
-      if (midiPacket[i] == 176 || midiPacket[i] == 192) {
-        //check to see how big buffer is currently
-        while (buffer.length < 3) {
-          buffer.add(0);
-        }
-        bufferOfGroups.add(buffer);
-        buffer = [];
-        buffer.add(midiPacket[i]);
-      } else {
-        buffer.add(midiPacket[i]);
-        if (buffer.length == 3) {
-          bufferOfGroups.add(buffer);
-          buffer = [];
-        }
-      }
-      i++;
-    }
-    if (buffer.length != 0) {
-      while (buffer.length < 3) {
-        buffer.add(0);
-      }
-      bufferOfGroups.add(buffer);
-      buffer = [];
-    }
-    bufferOfGroups.forEach((message) {
-      handleMidiData(message);
-    });
   }
 
   void sendMidi(listOfData) {
@@ -139,7 +60,7 @@ class MidiControlsState extends State<MidiControls> {
     for (var i = 0; i < listOfData.length; i++) {
       data[i] = listOfData[i];
     }
-    MidiCommand().sendData(data);
+    _midiCommand.sendData(data);
   }
 
   void dispose() {
@@ -151,27 +72,78 @@ class MidiControlsState extends State<MidiControls> {
   Future<void> _editPad(BuildContext context, index) async {
     return showDialog<void>(
       context: context,
-      barrierDismissible: false, // user must tap button!
+      barrierDismissible: true, // user must tap button!
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Edit the Pad!'),
+          title: Text('Edit Pad #${index}'),
           content: SingleChildScrollView(
             child: ListBody(
-              children: const <Widget>[
+              children: <Widget>[
+                /*
                 Text('This is a demo alert dialog.'),
                 Text('Would you like to approve of this message?'),
+                SizedBox(height: 20),
+                */
+                TextFormField(
+                    initialValue: "C0 ${index}",
+                    textAlign: TextAlign.left,
+                    decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(),
+                        labelText: 'Pad Label')),
+                SizedBox(height: 20),
+                TextFormField(
+                    initialValue: "C0 ${index}",
+                    textAlign: TextAlign.left,
+                    decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(),
+                        labelText: 'MIDI Message (in hex)')),
+                SizedBox(height: 20),
+                Wrap(
+                  children: [
+                    ...[
+                      Color.fromRGBO(26, 19, 49, 1),
+                      Color.fromRGBO(39, 41, 71, 1),
+                      Color.fromRGBO(35, 82, 88, 1),
+                      Color.fromRGBO(51, 113, 85, 1),
+                      Color.fromRGBO(91, 191, 139, 1),
+                      Color.fromRGBO(181, 215, 123, 1),
+                      Color.fromRGBO(243, 193, 103, 1),
+                      Color.fromRGBO(223, 114, 72, 1),
+                      Color.fromRGBO(217, 50, 76, 1),
+                      Color.fromRGBO(148, 53, 92, 1),
+                      Color.fromRGBO(102, 19, 93, 1),
+                      Color.fromRGBO(16, 43, 118, 1)
+                    ].map(
+                      (color) => SizedBox(
+                        width: 42.0,
+                        height: 42.0,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(color: color),
+                          child: Icon(
+                            Icons.check_box,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    )
+                  ],
+                )
               ],
             ),
           ),
           actions: <Widget>[
-            TextButton(
-              child: const Text('Approve'),
+            ElevatedButton(
               onPressed: () {
                 setState(() {
                   _totalNumberOfPads = index;
                 });
                 Navigator.of(context).pop();
               },
+              child: const Text('Enabled'),
             ),
           ],
         );
@@ -183,18 +155,29 @@ class MidiControlsState extends State<MidiControls> {
   Widget build(BuildContext context) {
 //    int crossAxisCount 6;
     AppBar appBar = AppBar(
+      automaticallyImplyLeading: false,
       title: !_editMode
           ? Text("Ballad of the Goddess")
           : TextFormField(
-              initialValue: "Ballad of the Goddess",
+              initialValue: "Ballad of them Goddess",
               decoration: InputDecoration(
                 filled: true,
                 fillColor: Colors.white,
                 border: OutlineInputBorder(),
                 hintText: 'Group Name',
               )),
-      backgroundColor: Theme.of(context).primaryColor,
+      backgroundColor: Colors.black,
       actions: [
+        if (!_editMode)
+          IconButton(
+              onPressed: () {
+                _scaffoldKey.currentState!.openEndDrawer();
+              },
+              icon: Icon(Icons.music_note)),
+        if (!_editMode)
+          IconButton(onPressed: () {}, icon: Icon(Icons.keyboard_arrow_left)),
+        if (!_editMode)
+          IconButton(onPressed: () {}, icon: Icon(Icons.keyboard_arrow_right)),
         if (!_editMode)
           IconButton(
               onPressed: () {
@@ -203,7 +186,15 @@ class MidiControlsState extends State<MidiControls> {
                 });
               },
               icon: Icon(Icons.edit)),
+        if (!_editMode)
+          Consumer<AppProvider>(
+              builder: (context, appProvider, child) => IconButton(
+                  onPressed: () {
+                    appProvider.changeScreen("midi");
+                  },
+                  icon: Icon(Icons.settings))),
         if (_editMode) ...[
+          Divider(color: Colors.black, thickness: 10),
           IconButton(
               onPressed: () {
                 setState(() {
@@ -230,9 +221,53 @@ class MidiControlsState extends State<MidiControls> {
       ],
     );
     var heightOfAppBar = appBar.preferredSize.height;
+
+    var drawerItems = ReorderableListView(
+        scrollController: ScrollController(),
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        children: <Widget>[
+          for (int index = 0; index < _items.length; index += 1)
+            ListTile(
+              key: Key('$index'),
+              //tileColor: _items[index].isOdd ? oddItemColor : evenItemColor,
+              title: Text('Item ${_items[index]}'),
+              //trailing: Icon(Icons.delete)
+            ),
+        ],
+        onReorder: (int oldIndex, int newIndex) {
+          setState(() {
+            if (oldIndex < newIndex) {
+              newIndex -= 1;
+            }
+            final int item = _items.removeAt(oldIndex);
+            _items.insert(newIndex, item);
+          });
+        });
     return Scaffold(
         appBar: appBar,
         backgroundColor: Colors.black,
+        key: _scaffoldKey,
+        endDrawer: Drawer(
+          child: Scaffold(
+              appBar: AppBar(
+                title: Text("Groups"),
+                backgroundColor: Color.fromRGBO(152, 56, 148, 1),
+                automaticallyImplyLeading: false,
+                actions: [
+                  IconButton(
+                    tooltip: "Add from file",
+                    icon: Icon(Icons.file_open),
+                    onPressed: () {},
+                  ),
+                  IconButton(
+                    tooltip: "Add blank group",
+                    icon: Icon(Icons.add_box),
+                    onPressed: () {},
+                  ),
+                ],
+              ),
+              body: drawerItems),
+        ),
         body: Center(child: Builder(builder: (BuildContext context) {
           var size = MediaQuery.of(context).size;
           final height = size.height - heightOfAppBar;
@@ -280,10 +315,11 @@ class MidiControlsState extends State<MidiControls> {
                     child: Card(
                       elevation: 2,
                       child: Stack(
+                        alignment: Alignment.center,
                         children: <Widget>[
                           Positioned(
                               child: _editMode
-                                  ? Text("editing")
+                                  ? Text("C0 ${index}")
                                   : Text("${index}"),
                               top: 10,
                               left: 10),
@@ -298,32 +334,13 @@ class MidiControlsState extends State<MidiControls> {
                                   onPressed: () async {
                                     await _editPad(context, index);
                                   },
-                                ))
+                                )),
+                          Text("hej")
                         ],
                       ),
                     ),
                   ));
         })));
-  }
-
-  _onChannelChanged(int newValue) {
-    setState(() {
-      _channel = newValue - 1;
-    });
-  }
-
-  _onControllerChanged(int newValue) {
-    setState(() {
-      _controller = newValue;
-    });
-  }
-
-  _onValueChanged(int newValue) {
-    setState(() {
-      _value = newValue;
-      CCMessage(channel: _channel, controller: _controller, value: _value)
-          .send();
-    });
   }
 }
 
