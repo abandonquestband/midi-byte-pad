@@ -40,7 +40,7 @@ dev_dependencies:
 flutter_icons:
   ios: true
   macos: true
-  image_path: "assets/images/appIcon/aq_logo-transparent.png"
+  image_path: "assets/images/appIcon/byte-pad-logo.png"
 
 # The following section is specific to Flutter.
 flutter:

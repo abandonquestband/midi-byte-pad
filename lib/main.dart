@@ -103,13 +103,11 @@ class _MyAppState extends State<MyApp> {
     this.loadJsonData();
 
     _setupSubscription = _midiCommand.onMidiSetupChanged?.listen((data) async {
-      print("setup changed $data");
       setState(() {});
     });
 
     _bluetoothStateSubscription =
         _midiCommand.onBluetoothStateChanged.listen((data) {
-      print("bluetooth state change $data");
       setState(() {});
     });
 
@@ -117,8 +115,7 @@ class _MyAppState extends State<MyApp> {
     //await _midiCommand.startBluetoothCentral();
     //await _midiCommand.waitUntilBluetoothIsInitialized();
     _midiCommand.devices.then((devices) {
-      print('here are all them devices ${devices![0]}');
-      MidiDevice device = devices[0];
+      MidiDevice device = devices![0];
       if (!device.connected) {
         _midiCommand.connectToDevice(device);
       }
@@ -160,14 +157,12 @@ class _MyAppState extends State<MyApp> {
     var whereAllFilesAreStored = directory.path;
     final dir = io.Directory(whereAllFilesAreStored);
     var all = dir.listSync();
-    print(all);
     setState(() {
       _numberOfFilesDownloaded = all.length;
     });
   }
 
   void changeSong(index) {
-    print("changed");
     print(index);
 
     _prefs.then((SharedPreferences prefs) async {
