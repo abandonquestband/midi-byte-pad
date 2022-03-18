@@ -639,216 +639,238 @@ class MidiControlsState extends State<MidiControls> {
                 ),
                 body: drawerItems),
           ),
-          body: Center(child: Builder(builder: (BuildContext context) {
-            var size = MediaQuery.of(context).size;
-            final height = size.height - heightOfAppBar;
-            final width = size.width;
-            double squareRootOfPads = sqrt(
-                Provider.of<AppProvider>(context, listen: false)
-                    .currentGroupPrograms
-                    .length);
-            int nextPerfectSquare = pow(
-                (sqrt(Provider.of<AppProvider>(context, listen: false)
-                            .currentGroupPrograms
-                            .length) +
-                        1)
-                    .floor(),
-                2) as int;
-            int previousPerfectSquare = pow(
-                (sqrt(Provider.of<AppProvider>(context, listen: false)
-                        .currentGroupPrograms
-                        .length))
-                    .floor(),
-                2) as int;
-            int roundedSqrt = (squareRootOfPads.round());
-            print("${previousPerfectSquare}.....${nextPerfectSquare}");
-            int differenceFromSquareRoots =
-                nextPerfectSquare - previousPerfectSquare;
-            bool positionIsLessThanHalfOfDistanceToNextSquareRoot =
-                roundedSqrt < differenceFromSquareRoots / 2;
-            //if the difference is less than half the total distance
-            final double itemHeight = height;
-            final double itemWidth = width;
-            if (Provider.of<AppProvider>(context, listen: false)
-                    .currentGroupPrograms
-                    .length <=
-                0) {
-              return SizedBox.shrink();
-            }
-            return GridView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: squareRootOfPads.ceil(),
-                  childAspectRatio: height < width
-                      ? max(itemHeight / itemWidth, itemWidth / itemHeight)
-                      : min(itemHeight / itemWidth, itemWidth / itemHeight),
-                  //childAspectRatio: 3 / 4.5,
-                ),
-                //padding: EdgeInsets.all(20),
-                itemCount: appProvider.currentGroupPrograms.length,
-                itemBuilder: (context, index) {
-                  var _pushed = false;
-                  return StatefulBuilder(builder: (context, setState) {
-                    var currentColor = Color(int.parse(
-                        appProvider.currentGroupColors[index].substring(8,
-                            appProvider.currentGroupColors[index].length - 1),
-                        radix: 16));
-                    return GestureDetector(
-                      //onSecondaryTap: ,
-                      onTapDown: (td) {
-                        if (appProvider.currentGroupPressMessages[index] !=
-                            "") {
-                          var midiMessage = appProvider
-                              .currentGroupPressMessages[index]
-                              .toString()
-                              .split(" ")
-                              .map((hex) => int.parse(hex, radix: 16))
-                              .toList();
-                          sendMidi(midiMessage);
-                        }
-                        setState(() {
-                          _pushed = true;
-                        });
-                      },
-                      onTapCancel: () {
-                        if (appProvider.currentGroupReleaseMessages[index] !=
-                            "") {
-                          var midiMessage = appProvider
-                              .currentGroupReleaseMessages[index]
-                              .toString()
-                              .split(" ")
-                              .map((hex) => int.parse(hex, radix: 16))
-                              .toList();
-                          sendMidi(midiMessage);
-                        }
-                        setState(() {
-                          _pushed = false;
-                        });
-                      },
-                      onTapUp: (tu) {
-                        if (appProvider.currentGroupReleaseMessages[index] !=
-                            "") {
-                          var midiMessage = appProvider
-                              .currentGroupReleaseMessages[index]
-                              .toString()
-                              .split(" ")
-                              .map((hex) => int.parse(hex, radix: 16))
-                              .toList();
-                          sendMidi(midiMessage);
-                        }
-                        setState(() {
-                          _pushed = false;
-                        });
-                      },
-                      child: Card(
-                        elevation: 2,
-                        color:
-                            _pushed ? currentColor.lighten(.1) : currentColor,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: <Widget>[
-                            Positioned(
-                                child: Text(
-                                    "${appProvider.currentGroupPressMessages[index]}",
-                                    style: TextStyle(
-                                        color: Color(int.parse(
-                                                        appProvider
-                                                            .currentGroupColors[
-                                                                index]
-                                                            .substring(
-                                                                8,
-                                                                appProvider
-                                                                        .currentGroupColors[
-                                                                            index]
-                                                                        .length -
-                                                                    1),
-                                                        radix: 16))
-                                                    .computeLuminance() >
-                                                0.5
-                                            ? Colors.black
-                                            : Colors.white)),
-                                top: 10,
-                                left: 10),
-                            Positioned(
-                                child: Text(
-                                    "${appProvider.currentGroupReleaseMessages[index]}",
-                                    style: TextStyle(
-                                        color: Color(int.parse(
-                                                        appProvider
-                                                            .currentGroupColors[
-                                                                index]
-                                                            .substring(
-                                                                8,
-                                                                appProvider
-                                                                        .currentGroupColors[
-                                                                            index]
-                                                                        .length -
-                                                                    1),
-                                                        radix: 16))
-                                                    .computeLuminance() >
-                                                0.5
-                                            ? Colors.black
-                                            : Colors.white)),
-                                bottom: 10,
-                                left: 10),
-                            if (_editMode)
-                              Positioned(
-                                  top: 0,
-                                  right: 0,
-                                  child: IconButton(
-                                    tooltip: "Edit pad",
-                                    //iconSize: 10,
-                                    color: Color(int.parse(
-                                                    appProvider
-                                                        .currentGroupColors[
-                                                            index]
-                                                        .substring(
-                                                            8,
-                                                            appProvider
-                                                                    .currentGroupColors[
-                                                                        index]
-                                                                    .length -
-                                                                1),
-                                                    radix: 16))
-                                                .computeLuminance() >
-                                            0.5
-                                        ? Colors.black
-                                        : Colors.white,
-                                    padding: EdgeInsets.all(0),
-                                    icon: Icon(Icons.edit),
-                                    onPressed: () async {
-                                      _tempNewColor = Provider.of<AppProvider>(
-                                              context,
-                                              listen: false)
-                                          .currentGroupColors[index];
-                                      await _editPad(context, index);
-                                    },
-                                  )),
-                            Text(appProvider.currentGroupPrograms[index],
-                                style: TextStyle(
-                                    color: Color(int.parse(
-                                                    appProvider
-                                                        .currentGroupColors[
-                                                            index]
-                                                        .substring(
-                                                            8,
-                                                            appProvider
-                                                                    .currentGroupColors[
-                                                                        index]
-                                                                    .length -
-                                                                1),
-                                                    radix: 16))
-                                                .computeLuminance() >
-                                            0.5
-                                        ? Colors.black
-                                        : Colors.white))
-                          ],
-                        ),
+          body: Provider.of<AppProvider>(context, listen: false).currentGroup ==
+                  ""
+              ? Center(
+                  child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Image.asset("assets/images/appIcon/byte-pad-logo.png"),
+                    Text(
+                      "Use the menu above to get started!",
+                      style: TextStyle(fontSize: 25, color: Colors.white),
+                      textAlign: TextAlign.center,
+                    )
+                  ],
+                ))
+              : Center(child: Builder(builder: (BuildContext context) {
+                  var size = MediaQuery.of(context).size;
+                  final height = size.height - heightOfAppBar;
+                  final width = size.width;
+                  double squareRootOfPads = sqrt(
+                      Provider.of<AppProvider>(context, listen: false)
+                          .currentGroupPrograms
+                          .length);
+                  int nextPerfectSquare = pow(
+                      (sqrt(Provider.of<AppProvider>(context, listen: false)
+                                  .currentGroupPrograms
+                                  .length) +
+                              1)
+                          .floor(),
+                      2) as int;
+                  int previousPerfectSquare = pow(
+                      (sqrt(Provider.of<AppProvider>(context, listen: false)
+                              .currentGroupPrograms
+                              .length))
+                          .floor(),
+                      2) as int;
+                  int roundedSqrt = (squareRootOfPads.round());
+                  print("${previousPerfectSquare}.....${nextPerfectSquare}");
+                  int differenceFromSquareRoots =
+                      nextPerfectSquare - previousPerfectSquare;
+                  bool positionIsLessThanHalfOfDistanceToNextSquareRoot =
+                      roundedSqrt < differenceFromSquareRoots / 2;
+                  //if the difference is less than half the total distance
+                  final double itemHeight = height;
+                  final double itemWidth = width;
+                  if (Provider.of<AppProvider>(context, listen: false)
+                          .currentGroupPrograms
+                          .length <=
+                      0) {
+                    return SizedBox.shrink();
+                  }
+                  return GridView.builder(
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: squareRootOfPads.ceil(),
+                        childAspectRatio: height < width
+                            ? max(
+                                itemHeight / itemWidth, itemWidth / itemHeight)
+                            : min(
+                                itemHeight / itemWidth, itemWidth / itemHeight),
+                        //childAspectRatio: 3 / 4.5,
                       ),
-                    );
-                  });
-                });
-          })));
+                      //padding: EdgeInsets.all(20),
+                      itemCount: appProvider.currentGroupPrograms.length,
+                      itemBuilder: (context, index) {
+                        var _pushed = false;
+                        return StatefulBuilder(builder: (context, setState) {
+                          var currentColor = Color(int.parse(
+                              appProvider.currentGroupColors[index].substring(
+                                  8,
+                                  appProvider.currentGroupColors[index].length -
+                                      1),
+                              radix: 16));
+                          return GestureDetector(
+                            //onSecondaryTap: ,
+                            onTapDown: (td) {
+                              if (appProvider
+                                      .currentGroupPressMessages[index] !=
+                                  "") {
+                                var midiMessage = appProvider
+                                    .currentGroupPressMessages[index]
+                                    .toString()
+                                    .split(" ")
+                                    .map((hex) => int.parse(hex, radix: 16))
+                                    .toList();
+                                sendMidi(midiMessage);
+                              }
+                              setState(() {
+                                _pushed = true;
+                              });
+                            },
+                            onTapCancel: () {
+                              if (appProvider
+                                      .currentGroupReleaseMessages[index] !=
+                                  "") {
+                                var midiMessage = appProvider
+                                    .currentGroupReleaseMessages[index]
+                                    .toString()
+                                    .split(" ")
+                                    .map((hex) => int.parse(hex, radix: 16))
+                                    .toList();
+                                sendMidi(midiMessage);
+                              }
+                              setState(() {
+                                _pushed = false;
+                              });
+                            },
+                            onTapUp: (tu) {
+                              if (appProvider
+                                      .currentGroupReleaseMessages[index] !=
+                                  "") {
+                                var midiMessage = appProvider
+                                    .currentGroupReleaseMessages[index]
+                                    .toString()
+                                    .split(" ")
+                                    .map((hex) => int.parse(hex, radix: 16))
+                                    .toList();
+                                sendMidi(midiMessage);
+                              }
+                              setState(() {
+                                _pushed = false;
+                              });
+                            },
+                            child: Card(
+                              elevation: 2,
+                              color: _pushed
+                                  ? currentColor.lighten(.1)
+                                  : currentColor,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: <Widget>[
+                                  Positioned(
+                                      child: Text(
+                                          "${appProvider.currentGroupPressMessages[index]}",
+                                          style: TextStyle(
+                                              color: Color(int.parse(
+                                                              appProvider
+                                                                  .currentGroupColors[
+                                                                      index]
+                                                                  .substring(
+                                                                      8,
+                                                                      appProvider
+                                                                              .currentGroupColors[index]
+                                                                              .length -
+                                                                          1),
+                                                              radix: 16))
+                                                          .computeLuminance() >
+                                                      0.5
+                                                  ? Colors.black
+                                                  : Colors.white)),
+                                      top: 10,
+                                      left: 10),
+                                  Positioned(
+                                      child: Text(
+                                          "${appProvider.currentGroupReleaseMessages[index]}",
+                                          style: TextStyle(
+                                              color: Color(int.parse(
+                                                              appProvider
+                                                                  .currentGroupColors[
+                                                                      index]
+                                                                  .substring(
+                                                                      8,
+                                                                      appProvider
+                                                                              .currentGroupColors[index]
+                                                                              .length -
+                                                                          1),
+                                                              radix: 16))
+                                                          .computeLuminance() >
+                                                      0.5
+                                                  ? Colors.black
+                                                  : Colors.white)),
+                                      bottom: 10,
+                                      left: 10),
+                                  if (_editMode)
+                                    Positioned(
+                                        top: 0,
+                                        right: 0,
+                                        child: IconButton(
+                                          tooltip: "Edit pad",
+                                          //iconSize: 10,
+                                          color: Color(int.parse(
+                                                          appProvider
+                                                              .currentGroupColors[
+                                                                  index]
+                                                              .substring(
+                                                                  8,
+                                                                  appProvider
+                                                                          .currentGroupColors[
+                                                                              index]
+                                                                          .length -
+                                                                      1),
+                                                          radix: 16))
+                                                      .computeLuminance() >
+                                                  0.5
+                                              ? Colors.black
+                                              : Colors.white,
+                                          padding: EdgeInsets.all(0),
+                                          icon: Icon(Icons.edit),
+                                          onPressed: () async {
+                                            _tempNewColor =
+                                                Provider.of<AppProvider>(
+                                                        context,
+                                                        listen: false)
+                                                    .currentGroupColors[index];
+                                            await _editPad(context, index);
+                                          },
+                                        )),
+                                  Text(appProvider.currentGroupPrograms[index],
+                                      style: TextStyle(
+                                          color: Color(int.parse(
+                                                          appProvider
+                                                              .currentGroupColors[
+                                                                  index]
+                                                              .substring(
+                                                                  8,
+                                                                  appProvider
+                                                                          .currentGroupColors[
+                                                                              index]
+                                                                          .length -
+                                                                      1),
+                                                          radix: 16))
+                                                      .computeLuminance() >
+                                                  0.5
+                                              ? Colors.black
+                                              : Colors.white))
+                                ],
+                              ),
+                            ),
+                          );
+                        });
+                      });
+                })));
     });
   }
 }
